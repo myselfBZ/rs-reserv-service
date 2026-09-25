@@ -8,6 +8,7 @@ pub struct User {
     pub id: i64,
     pub email: String,
     pub name: String,
+    pub created_at: NaiveDateTime,
 }
 
 #[derive(Serialize)]
@@ -22,7 +23,8 @@ pub struct OrderItem {
 pub struct Order {
     pub id: i64,
     pub user_id: i64,
-    pub created_at: NaiveDateTime,
+    pub placed_at: NaiveDateTime,
+    pub total_price: BigDecimal,
     pub items: Vec<OrderItem>
 }
 
