@@ -7,6 +7,7 @@ edition = "2024"
 tokio = { version = "1.52.3", features = ["full", "rt-multi-thread", "macros"] }
 axum = "0.8"
 serde = { version = "1.0.229", features = ["derive"] }
+dotenvy = "0.15"
 sqlx = { version = "0.9", features = [
     "runtime-tokio",
     "tls-native-tls",

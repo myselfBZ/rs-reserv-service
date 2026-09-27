@@ -4,7 +4,6 @@ use crate::{
     db::{error::DbError, products}, entities::{CreateProductPayload, Product}, handlers::{AppError, Data}, state::AppState
 };
 
-
 pub async fn get_by_id(State(state): State<Arc<AppState>>, Path(id): Path<i64>) -> Result<Json<Product>, AppError> {
     let p = products::get_by_id(&state.pool, id)
         .await
