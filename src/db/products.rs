@@ -1,6 +1,6 @@
 use sqlx::PgPool;
 
-use crate::entities::Product;
+use crate::entities::{CreateProductPayload, Product};
 use crate::db::error::DbError;
 
 pub async fn get_by_id(pool: &PgPool, id: i64) -> Result<Product, DbError> {
@@ -24,7 +24,7 @@ pub async fn get_by_id(pool: &PgPool, id: i64) -> Result<Product, DbError> {
     })
 }
 
-pub async fn create(pool: &PgPool, p: Product) -> Result<i64, DbError> {
+pub async fn create(pool: &PgPool, p: CreateProductPayload) -> Result<i64, DbError> {
     sqlx::query_scalar!(
         r#"INSERT INTO 
             products(name, price, stock_quantity)

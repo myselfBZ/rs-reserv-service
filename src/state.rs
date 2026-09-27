@@ -1,5 +1,5 @@
 use sqlx::PgPool;
 
 pub struct AppState {
-    pool: PgPool
+    pub pool: PgPool
 }

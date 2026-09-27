@@ -3,6 +3,13 @@ use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 
 
+#[derive(Deserialize)]
+pub struct CreateProductPayload {
+    pub name: String,
+    pub price: BigDecimal,
+    pub stock_quantity: i32
+}
+
 #[derive(Serialize)]
 pub struct User {
     pub id: i64,
