@@ -2,6 +2,7 @@ use serde::Serialize;
 use axum::{response::IntoResponse, Json, http::StatusCode};
 
 pub mod products;
+pub mod orders;
 
 
 #[derive(Serialize)]

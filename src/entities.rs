@@ -10,6 +10,19 @@ pub struct CreateProductPayload {
     pub stock_quantity: i32
 }
 
+#[derive(Deserialize)]
+pub struct CreateOrderPayload {
+    pub user_id: i64,
+    pub items: Vec<OrderItemPayload>
+}
+
+#[derive(Deserialize)]
+pub struct OrderItemPayload {
+    pub product_id: i64,
+    pub quantity: i32,
+    pub unit_price: BigDecimal
+}
+
 #[derive(Serialize)]
 pub struct User {
     pub id: i64,

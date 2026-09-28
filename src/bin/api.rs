@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use dotenvy::dotenv;
 use axum::{Router, routing::{get, post}};
-use rs_reserv_service::{handlers::products, state::AppState};
+use rs_reserv_service::{handlers::{orders, products}, state::AppState};
 use sqlx::PgPool;
 
 #[tokio::main]
@@ -15,6 +15,7 @@ async fn main() {
     let app = Router::new()
         .route("/products", post(products::create))
         .route("/products/{id}", get(products::get_by_id))
+        .route("/orders", post(orders::create))
         .with_state(state);
     println!("we are up");
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
