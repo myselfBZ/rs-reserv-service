@@ -40,33 +40,50 @@ pub async fn create(pool: &PgPool, mut order: CreateOrderPayload) -> Result<i64,
     .map_err(|e| match e {
         default => DbError::Internal(default)
     })?;
-
-
-    for it in order.items.iter() {
-        sqlx::query!(r#"
+   let product_ids: Vec<i64> = order.items.iter().map(|o| {
+       o.product_id
+   }).rev().collect();
+   let unit_prices: Vec<BigDecimal> = order.items.iter().map(|o| {
+       o.unit_price.clone()
+   }).rev().collect();
+   let quantities: Vec<i32> = order.items.iter().map(|o| {
+       o.quantity
+   }).rev().collect();
+   
+   sqlx::query!(r#"
+        WITH data AS (
+            SELECT 
+            $1::BIGINT AS order_id,
+            unnest($2::BIGINT[]) AS product_id,
+            unnest($3::INT[]) AS quantity,
+            unnest($4::NUMERIC(15,2)[]) AS unit_price
+        )
         INSERT INTO order_items (order_id, product_id, quantity, unit_price)
-        VALUES ($1, $2, $3, $4)
+        SELECT order_id, product_id, quantity, unit_price
+        FROM data;
         "#,
         id,
-        it.product_id,
-        it.quantity,
-        it.unit_price)
-            .execute(&mut *tx)
-            .await
-            .map_err(|e| match e {
-                default => DbError::Internal(default)
-            })?;
-        sqlx::query!(
-            r#"UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2"#,
-            it.quantity,
-            it.product_id
-        )
-        .execute(&mut *tx)
-        .await
-        .map_err(|e| match e {
-            default => DbError::Internal(default)
-        })?;
-    }
+        &product_ids,
+        &quantities,
+        &unit_prices)
+       .execute(&mut *tx)
+       .await
+       .map_err(|e| match e {
+           default => DbError::Internal(default)
+       })?;
+
+   sqlx::query!(
+       r#"
+         UPDATE products
+         SET stock_quantity = products.stock_quantity + order_items.quantity
+         FROM order_items
+         WHERE order_items.order_id = $1 AND products.id = order_items.product_id"#,
+         id)
+     .execute(&mut *tx)
+     .await
+     .map_err(|e| match e {
+         default => DbError::Internal(default)
+     })?;
 
     tx.commit()
         .await
