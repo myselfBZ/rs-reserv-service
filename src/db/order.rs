@@ -1,55 +1,21 @@
 use bigdecimal::BigDecimal;
-use sqlx::{PgPool};
+use crate::{db::error::DbError, entities::{OrderItemPayload}};
 
-use crate::{db::error::DbError, entities::{CreateOrderPayload, Product}};
+pub struct CreateOrderParam {
+    pub user_id: i64,
+    pub total_price: BigDecimal
+}
 
-
-pub async fn create(pool: &PgPool, mut order: CreateOrderPayload) -> Result<i64, DbError> {
-    let mut tx = pool.begin()
-        .await
-        .map_err(|e| match e {
-            default => DbError::Internal(default)
-        })?;
-    let mut total_price = BigDecimal::from(0);
-    for i in 0..order.items.len() {
-        let p = sqlx::query_as!(
-            Product,
-            r#"SELECT * FROM products WHERE id = $1 FOR UPDATE"#,
-            order.items[i].product_id,
-        )
-        .fetch_one(&mut *tx)
-        .await
-        .map_err(|e| match e {
-            sqlx::Error::RowNotFound => DbError::NotFound,
-            default => DbError::Internal(default)
-        })?;
-        total_price += p.price.clone() * order.items[i].quantity;
-        if p.stock_quantity < order.items[i].quantity {
-            return Err(DbError::Conflict("not enough supply".to_string()));
-        }
-        let it = &mut order.items[i]; 
-        it.unit_price = p.price 
-    }
-
-    let id: i64 = sqlx::query_scalar!(
-        r#"INSERT INTO orders(user_id, total_price) VALUES($1, $2) RETURNING id"#,
-        order.user_id,
-        total_price
-    )
-    .fetch_one(&mut *tx).await
-    .map_err(|e| match e {
-        default => DbError::Internal(default)
-    })?;
-   let product_ids: Vec<i64> = order.items.iter().map(|o| {
+pub async fn create_items<'a, T:sqlx::PgExecutor<'a>>(db: T, order_id: i64, items: &[OrderItemPayload]) -> Result<(), DbError> {
+   let product_ids: Vec<i64> = items.iter().map(|o| {
        o.product_id
    }).rev().collect();
-   let unit_prices: Vec<BigDecimal> = order.items.iter().map(|o| {
+   let unit_prices: Vec<BigDecimal> = items.iter().map(|o| {
        o.unit_price.clone()
    }).rev().collect();
-   let quantities: Vec<i32> = order.items.iter().map(|o| {
+   let quantities: Vec<i32> = items.iter().map(|o| {
        o.quantity
    }).rev().collect();
-   
    sqlx::query!(r#"
         WITH data AS (
             SELECT 
@@ -62,34 +28,30 @@ pub async fn create(pool: &PgPool, mut order: CreateOrderPayload) -> Result<i64,
         SELECT order_id, product_id, quantity, unit_price
         FROM data;
         "#,
-        id,
+        order_id,
         &product_ids,
         &quantities,
         &unit_prices)
-       .execute(&mut *tx)
+       .execute(db)
        .await
        .map_err(|e| match e {
            default => DbError::Internal(default)
        })?;
 
-   sqlx::query!(
-       r#"
-         UPDATE products
-         SET stock_quantity = products.stock_quantity + order_items.quantity
-         FROM order_items
-         WHERE order_items.order_id = $1 AND products.id = order_items.product_id"#,
-         id)
-     .execute(&mut *tx)
-     .await
-     .map_err(|e| match e {
-         default => DbError::Internal(default)
-     })?;
+   Ok(())
+}
 
-    tx.commit()
+pub async fn create_order<'a, T: sqlx::PgExecutor<'a>>(db: T, o: CreateOrderParam) -> Result<i64, DbError> {
+    let id = sqlx::query_scalar!(r#"
+        INSERT INTO orders(user_id, total_price) VALUES($1, $2) RETURNING id
+        "#,
+        o.user_id,
+        o.total_price
+        )
+        .fetch_one(db)
         .await
         .map_err(|e| match e {
             default => DbError::Internal(default)
         })?;
-
     Ok(id)
 }
